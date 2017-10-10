@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Lambda Web API Demo</title>
+    <meta charset="utf-8" />
+    <link href="../node_modules/fullcalendar/dist/fullcalendar.min.css" rel="stylesheet" />
+    <link href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet" />
+    <script src="//code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="//code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="../node_modules/moment/min/moment.min.js"></script>
+    <script src="../node_modules/fullcalendar/dist/fullcalendar.min.js"></script>
+    <script src="../aws-cognito-sdk.min.js"></script>
+    <script src="../amazon-cognito-identity.min.js"></script>
+</head>
+<body>
+    <span style="float:right"><button id="login" onclick="showLogin()">log in</button></span>
+    <h3>SPA using ASP.NET Core Web API in AWS Lambda &amp; Amazon Cognito for authentication</h3>
+    <div id='calendar'></div>
+    <form id='eventview' style="display:none;" title="Create/Edit Event" onsubmit="submitEvent(); return false;">
+        <div>Date: <span id="eventdate"></span>
+        <input type="hidden" id="eventid" name="id"/><input type="hidden" id="date"/></div>
+        <div>Title: <input type="text" id="title" name="title" /></div>
+        <div>Start time: <input type="text" id="starttime" name="start"/></div>
+        <div>End time: <input type="text" id="endtime" name="end"/></div>
+        <div><button style="float:right; margin:3px">Submit</button></div>
+    </form>
+    <div id='loginform' style="display:none;" title="Log in">
+        <div>Username: <input type="text" id="username"/></div>
+        <div>Password: <input type="password" id="password"/></div>
+        <div><button style="float:right" margin:3px" onclick="authenticate()">Submit</button></div>
+    </div>
+    <div id="changepass" style="display:none;" title="Change password">
+        <div>New Password: <input type="password" id="newpass"/></div>
+        <div>Confirm Password: <input type="password" id="confirmpass"/></div>
+        <div><button style="float:right" margin:3px" id="changebtn">Change</button></div>
+    </div>
+</body>
+</html>
+<script language="javascript">
+
+    $(document).ready(function () {
+        $('#calendar').fullCalendar({
+            events: '../api/events',
+            timezone: 'local',
+            dayClick: function (date, jsEvent, view) {
+                editEvent(date);
+            },
+            eventClick: function (calEvent, jsEvent, view) {
+                editEvent(calEvent.start, calEvent.end, calEvent.title, calEvent.id);
+            }
+        });
+    });
+
+    function showLogin() {
+        $('#loginform').dialog({ modal: true, title: 'Enter credentials', width: 360 });
+    }
+
+    function editEvent(startDate, endDate, title, eventid) {
+        $('#eventdate').html(startDate.format("dddd MMM D"));
+        $('#date').val(startDate.format('YYYY-MMM-D'));
+        $('#eventid').val(eventid);
+        $('#title').val(title ? title : '');
+        $('#starttime').val(eventid ? startDate.local().format('h:mm a') : '10:00 am');
+        $('#endtime').val(eventid ? endDate.local().format('h:mm a') : '2:00 pm');
+        $('#eventview').dialog({ modal: true, title: (title ? "Edit Event" : 'New Event'), width: 360 });
+    }
+
+    function submitEvent() {
+        $('#eventview').dialog('close');
+        var sdt = moment($('#date').val() + ' ' + $('#starttime').val(), "YYYY-MMM-D hh:mm a").utc().format()
+        var edt = moment($('#date').val() + ' ' + $('#endtime').val(), "YYYY-MMM-D hh:mm a").utc().format()
+        $('#starttime').val(sdt);
+        $('#endtime').val(edt);
+        var eventid = $('#eventid').val();
+        var payload = $('form').serialize();
+        console.log('payload = ' + payload);
+
+        $.ajax({
+            type: eventid ? "PUT" : "POST",
+            url: eventid ? "../api/events/" + eventid : "../api/events",
+            data: payload,
+            beforeSend: function (xhr) {
+                /* Authorization header */
+                xhr.setRequestHeader("Authorization", "bearer " + localStorage.getItem('jwt'));
+                xhr.setRequestHeader("Accept", "application/json");
+            },
+            statusCode: {
+                200: function () {
+                    $('#calendar').fullCalendar('refetchEvents');
+                },
+                401: function () {
+                    alert("You are not authenticated, please log in (401)");
+                },
+                403: function () {
+                    alert("You do not have permissions to save events (403)");
+                }
+            },
+        });
+    }
+
+    function authenticate() {
+
+        var authenticationData = {
+            Username: $('#username').val(),
+            Password: $('#password').val(),
+        };
+        console.log('username = ' + authenticationData.Username);
+
+        var CognitoIdentityServiceProvider = AWSCognito.CognitoIdentityServiceProvider;
+        var authenticationDetails = new CognitoIdentityServiceProvider.AuthenticationDetails(authenticationData);
+
+        var CognitoUserPool = AmazonCognitoIdentity.CognitoUserPool;
+
+        var poolData = {
+            UserPoolId: 'us-west-2_PoTkPSgPb', //user pool id
+            ClientId: '5uibfabea1gvq8t8ivou1bge50' //app client id
+        };
+        var userPool = new CognitoUserPool(poolData);
+
+        var userData = {
+            Username: authenticationData.Username,
+            Pool: userPool
+        };
+        var cognitoUser = new CognitoIdentityServiceProvider.CognitoUser(userData);
+
+        cognitoUser.authenticateUser(authenticationDetails, {
+            onSuccess: function (result) {
+                localStorage.setItem('jwt', result.getIdToken().getJwtToken())
+                console.log('jwt token + ' + localStorage.getItem('jwt'));
+                $('#loginform').dialog('close');
+                $('#login').prop("disabled", true);
+            },
+
+            onFailure: function (err) {
+                alert(err);
+            },
+
+            newPasswordRequired: function (userAttributes, requiredAttributes) {
+                // the api doesn't accept this field back
+                delete userAttributes.email_verified;
+                delete userAttributes.phone_number_verified;
+                $('#loginform').dialog('close');
+                $('#changepass').dialog({ modal: true, title: '1st Login - Change Password', width: 360 });
+                $('#changebtn').click(function () {
+                    if ($('#newpass').val() == $('#confirmpass').val()) {
+                        cognitoUser.completeNewPasswordChallenge($('#newpass').val(), userAttributes, this);
+                        alert('Password changed, please log in with the new password');
+                        $('#changepass').dialog('close');
+                        Password: $('#password').val('');
+                        showLogin();
+                    }
+                });
+            }
+        });
+    }
+</script>
