@@ -49,7 +49,7 @@
     <None Update="wwwroot\aws-cognito-sdk.min.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="wwwroot\calendar\index.html">
+    <None Update="wwwroot\index.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="wwwroot\node_modules\fullcalendar\dist\fullcalendar.min.css">

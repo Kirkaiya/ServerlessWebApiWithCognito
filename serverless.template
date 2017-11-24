@@ -15,8 +15,8 @@
         "Timeout": 30,
         "Role": null,
         "Policies": [ "AWSLambdaFullAccess" ],
-        "Environment" : {
-          "Variables" : {
+        "Environment": {
+          "Variables": {
           }
         },
         "Events": {
@@ -25,6 +25,13 @@
             "Properties": {
               "Path": "/{proxy+}",
               "Method": "ANY"
+            }
+          },
+          "GetResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/",
+              "Method": "GET"
             }
           }
         }
