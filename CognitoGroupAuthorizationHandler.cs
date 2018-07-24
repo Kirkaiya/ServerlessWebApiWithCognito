@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ServerlessSpaWithDotNet
 {
@@ -8,15 +7,8 @@ namespace ServerlessSpaWithDotNet
     {
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, CognitoGroupAuthorizationRequirement requirement)
         {
-            if (!context.User.HasClaim(c => c.Type == "cognito:groups"))
-            {
-                context.Fail();
-                return Task.CompletedTask;
-            }
-
-            var group = context.User.FindFirst(c => c.Type == "cognito:groups").Value;
-
-            if (group == requirement.CognitoGroup)
+            if (context.User.HasClaim(c => c.Type == "cognito:groups" &&
+                                           c.Value == requirement.CognitoGroup))
             {
                 context.Succeed(requirement);
             }
@@ -27,5 +19,6 @@ namespace ServerlessSpaWithDotNet
 
             return Task.CompletedTask;
         }
+
     }
 }
