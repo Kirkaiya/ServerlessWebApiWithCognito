@@ -3,7 +3,9 @@
 # Custom Authorizer for Serverless ASP.NET Core Web APIs with Lambda and Cognito
 
 ## Warning! This project is from September 2017, prior to .NET Core 2.0 support in Lambda
-** If you use this, use the 2. runtime, update the Nuget dependencies, and so on.** 
+** If you use this, use the latest version of .NET, update the Nuget dependencies, and so on.** 
+
+** ==> UPDATE: for using this code with newer versions of .NET, you'll need to make a number of changes to the way that JWT tokens are validated, it has changed a bit <== **
 
 In real-world web-applications, you nearly always want some way to authenticate users – either all of them, or some subset of them – in order to gate access to some features. In ASP.NET Web API, developers are used to adding the [Authorize] attribute to controller methods, and then relying on a membership database to store users and their roles. With [Amazon Cognito](mailto:https://aws.amazon.com/cognito/) User Pools, however, we can offload the storage, management and authentication of users and their roles, while still leveraging the [Authorize] attribute plus a custom AuthorizationHandler class, to control access to Web API methods.
 
